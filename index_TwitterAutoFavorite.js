@@ -9,7 +9,7 @@ var lngDetector = new LanguageDetect();
 var T = new Twit({
     consumer_key: 'DELETED',           // <--- FILL ME IN
     consumer_secret: 'DELETED',        // <--- FILL ME IN
-    access_token: '112919665-DELETED',       // <--- FILL ME IN
+    access_token: 'DELETED',       // <--- FILL ME IN
     access_token_secret: 'DELETED',     // <--- FILL ME IN
     timeout_ms: 15*1000  // optional HTTP request timeout to apply to all requests.
 });
