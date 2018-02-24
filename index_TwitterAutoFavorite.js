@@ -195,7 +195,7 @@ function tweetProcessor(timeInterval) {
 			var tweetObject = tweetQueue.splice( i, 1 )[0];
 
 			//Favorite that tweet!
-			setTimeout(favoriteTweet(tweetObject), 5000);
+			setTimeout(function() { favoriteTweet(tweetObject); }, 5000);
 		}
 	};
 	console.log("[PROCESSOR] Ending tweetProcessor|Favd " + tweetsFavd + " of " + tweetQueue.length + " tweets in the stack.");
