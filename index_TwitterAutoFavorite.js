@@ -1,3 +1,6 @@
+process.env.UV_THREADPOOL_SIZE = 128;
+console.log('[STARTUP] process.env.UV_THREADPOOL_SIZE = ' + process.env.UV_THREADPOOL_SIZE);
+
 var Twit = require('twit');
 var _ = require('underscore');
 var moment = require('moment');
@@ -12,13 +15,13 @@ var T = new Twit({
     consumer_secret: 'DELETED',        // <--- FILL ME IN
     access_token: 'DELETED',       // <--- FILL ME IN
     access_token_secret: 'DELETED',     // <--- FILL ME IN
-    timeout_ms: 15*1000  // optional HTTP request timeout to apply to all requests.
+    timeout_ms: 30*1000  // optional HTTP request timeout to apply to all requests.
 });
 
 // Twitter symbols array
 var searchSymbols = ['javascript', 'angularjs', 'node.js', '#php', 'jquery', '#python', '#nodejs', 'asp.net', 'c#', 'web api', 'machine learning', 'markov chain'];
 
-// Queue Array for tweets to favorite  --ME
+// Queue Array for tweets to favorite
 var tweetQueue = [];
 var currentTweetStreams = 0;
 
@@ -30,7 +33,8 @@ var currentTweetStreams = 0;
 //})
 
 console.log("Starting TwitterFavorite");
-var minutes = 5, the_interval = minutes * 60 * 1000;
+var Fiveminutes = 5, Fivemin_interval = Fiveminutes * 60 * 1000;
+var Twominutes = 5, Twomin_interval = Twominutes * 60 * 1000;
 
 function tweetCollector(timeInterval){
 
@@ -45,7 +49,7 @@ function tweetCollector(timeInterval){
 		currentTweetStreams++;
 
 		// Disconnect stream after 30 seconds
-		setTimeout(function() { killStream(stream); }, 30000);  //--ME
+	    setTimeout(function() { killStream(stream); }, 30000);
 
 		stream.on('limit', function (limitMessage) {
 		  //Twitter API Limit Hit
@@ -53,21 +57,21 @@ function tweetCollector(timeInterval){
 		})
 
 		stream.on('end', function (response) {
-		  // Handle a disconnection
-		  console.log('Stream Ended');
-		});
+	      // Handle a disconnection
+	      console.log('Stream Ended');
+	    });
 	    
-	    	stream.on('destroy', function (response) {
-	      	  // Handle a 'silent' disconnection from Twitter, no end/error event fired
-	      	  console.log('Stream Destroyed');
-	    	});
+	    stream.on('destroy', function (response) {
+	      // Handle a 'silent' disconnection from Twitter, no end/error event fired
+	      console.log('Stream Destroyed');
+	    });
 
-		stream.on('message', function (msg) {
-		  // Handle a Message.  These are sent all of the time, so just eat it until we get a msg object definition.
-		  //console.log('[MESSAGE] Stream Message Received');
-		});
+	    stream.on('message', function (msg) {
+	      // Handle a disconnection
+	      //console.log('[MESSAGE] Stream Message Received');
+	    });
 
-	    	stream.on('delete', function (deleteMessage) {
+	    stream.on('delete', function (deleteMessage) {
 		  //... 
 		  console.log('Stream Delete Message: ' + deleteMessage);
 		})
@@ -91,11 +95,11 @@ function tweetCollector(timeInterval){
 		});
 
 		stream.on('reconnect', function (request, response, connectInterval) {
-		  // Handle a disconnection
-		  console.log('[RECONNECTED] Twitter Stream reconnecting in ' + connectInterval + ' (' + response.statusCode + ')');
-		});
+	      // Handle a disconnection
+	      console.log('[RECONNECTED] Twitter Stream reconnecting in ' + connectInterval + ' (' + response.statusCode + ')');
+	    });
 
-		stream.on('warning', function (warning) {
+	    stream.on('warning', function (warning) {
 		  //... 
 		  console.log('[WARNING] Stream Warning. You are falling behind Twitter\'s firehose. ' + warning);
 		})
@@ -117,7 +121,7 @@ function tweetCollector(timeInterval){
 			var tweetFavAlready = false; 
 			console.log('[TWEET] Found a tweet to process! id_str:' + tweet.id_str + ' created_at: ' + tweet.created_at);
 
-		    //Make sure it was a valid tweet
+			//Make sure it was a valid tweet
 		    if (tweet.text !== undefined) {
 
 		        //We're gonna do some indexOf comparisons and we want it to be case agnostic.
@@ -168,42 +172,52 @@ function tweetCollector(timeInterval){
 			}
 		});
 	}
-	setTimeout(function() { tweetCollector(the_interval); }, timeInterval);
+	setTimeout(function() { tweetCollector(Fivemin_interval); }, timeInterval);
 }
 
 // Start the Tweet Collection Loop Thread
-tweetCollector(the_interval);
+tweetCollector(Fivemin_interval);
 
 
 // Tweet Favoriting Thread
-function tweetProcessor(timeInterval) {
+function tweetProcessor(timeInterval){
+	var tweetsFavd = 0;
+	var len = tweetQueue.length;
+
+	console.log("[PROCESSOR] Starting tweetProcessor|NumOfTweetsInStack:" + len);
 	// Check the global queue to see if we have any tweets to favorite
 	// If we have tweets old enough to fav, send them to the favoriting function
-	console.log("[PROCESSOR] Starting tweetProcessor|NumOfTweetsInStack:" + tweetQueue.length);
-	var tweetsFavd = 0;
-	for (var i = 0, len = tweetQueue.length; i<len; i++) {
+	for (var i = len-1; i>=0; i--) {
+		var tweet = tweetQueue[i];
+		if((typeof(tweet) != undefined)) {
+			if((typeof(tweet.created_at) !== undefined)) {
+				// Calculate how old this tweet is
+				var MomentNow = moment();
+				var tweetMoment = moment(tweet.created_at, 'dd MMM DD HH:mm:ss ZZ YYYY', 'en');
+				var tweetMomentDiff = MomentNow.diff(tweetMoment, 'seconds');
 
-        // Calculate how old this tweet is
-		var MomentNow = moment();
-		var tweetMoment = moment(tweetQueue[i].created_at, 'dd MMM DD HH:mm:ss ZZ YYYY', 'en');
-		var tweetMomentDiff = MomentNow.diff(tweetMoment, 'seconds');
+				console.log("[TWEET] i = " + i + "|id_str: " + tweet.id_str + "|TweetAge: " + tweetMomentDiff + " seconds.");
 
-		// If tweet greater than 30 s old, fave it
-    	if(tweetMomentDiff > 30) {
-    		tweetsFavd++;
-    		// Pop this tweet out of the stack
-			var tweetObject = tweetQueue.splice( i, 1 )[0];
+				// If tweet greater than 30 s old, fave it
+		    	if(tweetMomentDiff > 30) {
+		    		tweetsFavd++;
 
-			//Favorite that tweet!
-			setTimeout(function() { favoriteTweet(tweetObject); }, 5000);
+		    		// Pop this tweet out of the stack
+					var tweetObject = tweetQueue.splice( i, 1 )[0];
+
+					//Favorite that tweet!
+					favoriteTweet(tweetObject);
+				}
+			}
+		} else {
+			console.log("[PROCESSOR] ERROR: Tweet object does not contain a created date.");
 		}
 	};
-	console.log("[PROCESSOR] Ending tweetProcessor|Favd " + tweetsFavd + " of " + tweetQueue.length + " tweets in the stack.");
-	setTimeout(function() { tweetProcessor(the_interval); }, timeInterval);
+	console.log("[PROCESSOR] Ending tweetProcessor|Favd " + tweetsFavd + " of " + len + " tweets in the stack.");
+	setTimeout(function() { tweetProcessor(Twomin_interval); }, timeInterval);
 }
-
 // Start the Tweet Processing Loop Thread
-setTimeout(function() { tweetProcessor(the_interval); }, 30000);
+setTimeout(function() { tweetProcessor(Twomin_interval); }, 30000);
 
 
 function killStream(streamEventEmitter) {
@@ -226,3 +240,4 @@ function favoriteTweet(tweet) {
         }
     });
 }
+	
